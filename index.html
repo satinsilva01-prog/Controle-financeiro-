@@ -766,6 +766,11 @@ document.getElementById("finish").onclick=function(e){
 };
 function loginScreen(){document.getElementById("setup").classList.add("hidden");document.getElementById("login").classList.remove("hidden");document.getElementById("loginUser").innerHTML=data.users.map(function(u,i){return '<option value="'+i+'">'+esc(u.name)+'</option>'}).join("")}
 
+/* Inicialização: se o aplicativo já foi configurado, não mostrar Configuração Inicial ao recarregar. */
+if(data.setup===true && Array.isArray(data.users) && data.users.length){
+  loginScreen();
+}
+
 document.getElementById("loginResetAppBtn").onclick=function(){
   if(!confirm("Isso apagará todos os dados deste aparelho e voltará à Configuração Inicial. Continuar?"))return;
   resetApplicationToInitialState();
