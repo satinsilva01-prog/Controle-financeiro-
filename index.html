@@ -659,7 +659,7 @@ function incomeTotal(m){
    var i=parseInt(String(k).replace(/^r/,""),10),t=(data.receiptTypes||[])[i],name=String(t||"").trim().toLowerCase();
    if(seasonal.indexOf(name)<0 && name!=="13º")sum+=(+d.receipts[k].value||0);
  });
- if(d.seasonalReceipts)seasonal.forEach(function(k){sum+=(+((d.seasonalReceipts[k]||{}).value)||0)});
+ if(d.seasonalReceipts){seasonal.forEach(function(k){sum+=(+((d.seasonalReceipts[k]||{}).value)||0)});(d.seasonalReceipts.custom||[]).forEach(function(x){sum+=(+x.value||0)})};
  return sum+d.extraReceipts.reduce(function(s,x){return s+(+x.value||0)},0);
 }
 
@@ -2991,31 +2991,39 @@ document.getElementById("clearP").onclick=clearPurchaseForm;
 
 function receiptRender(){
  if(!data.receiptsEnabled||!admin())return;
- var m=document.getElementById("rMonth").value||month(),d=md(m);seasonalInit(d);var h='<div class="fixed-cards receipt-cards">';
+ var m=document.getElementById("rMonth").value||month(),d=md(m);seasonalInit(d);
+ var h='<div class="fixed-cards receipt-cards">';
  data.receiptTypes.forEach(function(t,i){
    if(["férias","pis","restituição","13º","13","outros"].indexOf(String(t).trim().toLowerCase())>=0)return;
    var k="r"+i,x=d.receipts[k]||{desc:"",person:"",value:0},v=+x.value||0;
-   h+='<div class="fixed-card fixed-standard-card"><div class="fixed-card-head"><strong>'+esc(t)+'</strong><span class="fixed-card-value"><input type="number" value="'+v+'" data-rv="'+i+'"></span></div></div>';
+   h+='<div class="fixed-card fixed-standard-card"><div class="fixed-card-head"><strong>'+esc(t)+'</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+v+'" data-rv="'+i+'"></span></div></div>';
  });
  d.extraReceipts.forEach(function(x,xi){
-   h+='<div class="fixed-card fixed-extra-card"><div class="fixed-card-head"><strong>'+esc(x.type||"Recebimento")+'</strong><span class="fixed-card-value">'+money(x.value)+'</span></div></div>';
+   x=x||{};
+   h+='<div class="fixed-card fixed-extra-card"><div class="fixed-card-head"><strong>'+esc(x.type||"Recebimento")+'</strong><span class="fixed-card-value">'+money(x.value)+'</span></div>'+
+   '<div style="font-size:.8rem;opacity:.75;margin-top:7px">Vencimento: '+esc(x.due||"Não informado")+'</div>'+
+   '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="secondary" data-edit-extra-receipt="'+xi+'">✏️ Editar</button><button type="button" class="danger" data-delete-extra-receipt="'+xi+'">🗑️ Excluir</button></div></div>';
  });
  h+='</div>';
+ h+='<button type="button" class="secondary" id="addSeasonalReceipt" style="width:100%;margin-top:8px">➕ Acrescentar recebimento sazonal</button>';
  h+='<div class="card seasonal-receipts-card" style="margin-top:12px">';
- h+='<button type="button" id="seasonalReceiptsToggle" class="purchase-toggle" style="width:100%;display:flex;justify-content:space-between;align-items:center">';
- h+='<span class="receipts-seasonal-label">🌿 <b>Recebimentos sazonais</b></span><span id="seasonalReceiptsChevron">▼</span></button>';
- h+='<div id="seasonalReceiptsPanel" class="hidden" style="margin-top:10px">';
- h+='<div class="seasonal-note">Férias, PIS, restituição, 13º e outros recebimentos que não precisam ficar visíveis todos os meses.</div>';
-var sx=d.seasonalReceipts&&d.seasonalReceipts['férias'];sx=sx||{value:0};h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>Férias</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+(+sx.value||0)+'" data-seasonal="férias"></span></div></div>';var sx=d.seasonalReceipts&&d.seasonalReceipts['pis'];sx=sx||{value:0};h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>PIS</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+(+sx.value||0)+'" data-seasonal="pis"></span></div></div>';var sx=d.seasonalReceipts&&d.seasonalReceipts['restituição'];sx=sx||{value:0};h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>Restituição</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+(+sx.value||0)+'" data-seasonal="restituição"></span></div></div>';var sx=d.seasonalReceipts&&d.seasonalReceipts['13'];sx=sx||{value:0};h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>13º</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+(+sx.value||0)+'" data-seasonal="13"></span></div></div>';var sx=d.seasonalReceipts&&d.seasonalReceipts['outros'];sx=sx||{value:0};h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>Outros</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+(+sx.value||0)+'" data-seasonal="outros"></span></div></div>';h+='</div></div>';
- h+='<div class="fixed-total"><span>Total</span><strong>'+money(incomeTotal(m))+'</strong></div>';
- document.getElementById("rTable").innerHTML=h;seasonalBind();
- document.querySelectorAll("[data-rv]").forEach(function(e){
-   e.onchange=function(){setReceipt(+e.dataset.rv,"value",e.value,m)}
+ h+='<button type="button" id="seasonalReceiptsToggle" class="purchase-toggle" style="width:100%;display:flex;justify-content:space-between;align-items:center"><span class="receipts-seasonal-label">🌿 <b>Recebimentos sazonais</b></span><span id="seasonalReceiptsChevron">▼</span></button>';
+ h+='<div id="seasonalReceiptsPanel" class="hidden" style="margin-top:10px"><div class="seasonal-note">Férias, PIS, restituição, 13º e outros recebimentos que não precisam ficar visíveis todos os meses.</div>';
+ var labels={"férias":"Férias","pis":"PIS","restituição":"Restituição","13":"13º","outros":"Outros"};
+ ["férias","pis","restituição","13","outros"].forEach(function(k){
+   var sx=d.seasonalReceipts[k]||{value:0};
+   h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>'+labels[k]+'</strong><span class="fixed-card-value"><input type="number" step="0.01" value="'+(+sx.value||0)+'" data-seasonal="'+k+'"></span></div><div style="font-size:.8rem;opacity:.75;margin-top:7px">Vencimento: '+esc(sx.due||"Não informado")+'</div></div>';
  });
+ (d.seasonalReceipts.custom||[]).forEach(function(x,xi){
+   h+='<div class="fixed-card seasonal-card"><div class="fixed-card-head"><strong>'+esc(x.type||"Sazonal")+'</strong><span class="fixed-card-value">'+money(x.value)+'</span></div><div style="font-size:.8rem;opacity:.75;margin-top:7px">Vencimento: '+esc(x.due||"Não informado")+'</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="secondary" data-edit-custom-seasonal="'+xi+'">✏️ Editar</button><button type="button" class="danger" data-delete-custom-seasonal="'+xi+'">🗑️ Excluir</button></div></div>';
+ });
+ h+='</div></div><div class="fixed-total"><span>Total</span><strong>'+money(incomeTotal(m))+'</strong></div>';
+ document.getElementById("rTable").innerHTML=h;seasonalBind();receiptExtraBind();
+ document.querySelectorAll("[data-rv]").forEach(function(e){e.onchange=function(){setReceipt(+e.dataset.rv,"value",e.value,m)}});
 }
 
 function seasonalInit(d){
-  d.seasonalReceipts=d.seasonalReceipts||{};
+  d.seasonalReceipts=d.seasonalReceipts||{};\n  d.seasonalReceipts.custom=Array.isArray(d.seasonalReceipts.custom)?d.seasonalReceipts.custom:[];
   ["férias","pis","restituição","13","outros"].forEach(function(k){
     d.seasonalReceipts[k]=d.seasonalReceipts[k]||{value:0};
   });
@@ -3033,26 +3041,51 @@ function seasonalInit(d){
   });
 }
 function seasonalBind(){
-  var t=document.getElementById("seasonalReceiptsToggle"),p=document.getElementById("seasonalReceiptsPanel"),c=document.getElementById("seasonalReceiptsChevron");
-  if(t&&p&&!t.dataset.bound){
-    t.dataset.bound="1";
-    t.onclick=function(){p.classList.toggle("hidden");if(c)c.textContent=p.classList.contains("hidden")?"▼":"▲";};
-  }
-  document.querySelectorAll("[data-seasonal]").forEach(function(e){
-    if(e.dataset.bound)return;
-    e.dataset.bound="1";
-    e.onchange=function(){
-      var d=md(document.getElementById("rMonth").value||month());
-      seasonalInit(d);
-      d.seasonalReceipts[e.dataset.seasonal].value=+e.value||0;
-      save();receiptRender();summaryRender();
-    };
-  });
+ var t=document.getElementById("seasonalReceiptsToggle"),p=document.getElementById("seasonalReceiptsPanel"),c=document.getElementById("seasonalReceiptsChevron");
+ if(t&&p&&!t.dataset.bound){t.dataset.bound="1";t.onclick=function(){p.classList.toggle("hidden");if(c)c.textContent=p.classList.contains("hidden")?"▼":"▲";};}
+}
+function receiptExtraBind(){
+ var m=document.getElementById("rMonth").value||month(),d=md(m);
+ document.querySelectorAll("[data-edit-extra-receipt]").forEach(function(b){b.onclick=function(){
+   var x=d.extraReceipts[+b.dataset.editExtraReceipt];if(!x)return;
+   var t=prompt("Tipo do recebimento:",x.type||"Recebimento");if(t===null)return;
+   var v=prompt("Valor:",x.value);if(v===null)return;v=+v;if(!(v>0))return alert("Informe um valor válido.");
+   var due=prompt("Vencimento (AAAA-MM-DD):",x.due||"");if(due===null)return;
+   x.type=t.trim()||"Recebimento";x.value=v;x.due=due.trim();save();receiptRender();summaryRender();
+ };});
+ document.querySelectorAll("[data-delete-extra-receipt]").forEach(function(b){b.onclick=function(){
+   var i=+b.dataset.deleteExtraReceipt;if(!d.extraReceipts[i])return;if(!confirm("Excluir este recebimento?"))return;d.extraReceipts.splice(i,1);save();receiptRender();summaryRender();
+ };});
+ var add=document.getElementById("addSeasonalReceipt");if(add)add.onclick=function(){
+   var t=prompt("Nome do recebimento sazonal:");if(t===null||!t.trim())return;
+   var v=+prompt("Valor:");if(!(v>0))return;
+   var due=prompt("Vencimento (AAAA-MM-DD):");if(due===null)return;
+   d.seasonalReceipts.custom.push({type:t.trim(),value:v,due:due.trim()});save();receiptRender();summaryRender();
+ };
+ document.querySelectorAll("[data-edit-custom-seasonal]").forEach(function(b){b.onclick=function(){
+   var x=d.seasonalReceipts.custom[+b.dataset.editCustomSeasonal];if(!x)return;
+   var t=prompt("Nome:",x.type||"Sazonal");if(t===null)return;
+   var v=prompt("Valor:",x.value);if(v===null)return;v=+v;if(!(v>0))return alert("Informe um valor válido.");
+   var due=prompt("Vencimento (AAAA-MM-DD):",x.due||"");if(due===null)return;
+   x.type=t.trim()||"Sazonal";x.value=v;x.due=due.trim();save();receiptRender();summaryRender();
+ };});
+ document.querySelectorAll("[data-delete-custom-seasonal]").forEach(function(b){b.onclick=function(){
+   var i=+b.dataset.deleteCustomSeasonal;if(!d.seasonalReceipts.custom[i])return;if(!confirm("Excluir este recebimento sazonal?"))return;d.seasonalReceipts.custom.splice(i,1);save();receiptRender();summaryRender();
+ };});
+ document.querySelectorAll("[data-seasonal]").forEach(function(e){e.onchange=function(){
+   var d2=md(document.getElementById("rMonth").value||month());seasonalInit(d2);d2.seasonalReceipts[e.dataset.seasonal].value=+e.value||0;save();receiptRender();summaryRender();
+ };});
 }
 
 function setReceipt(i,k,v,m){var d=md(m),x=d.receipts["r"+i]||{desc:"",person:"",value:0};x[k]=k==="value"?+v||0:v;d.receipts["r"+i]=x;save();receiptRender();summaryRender()}
 document.getElementById("rMonth").value=month();document.getElementById("rMonth").onchange=receiptRender;
-document.getElementById("addExtraReceipt").onclick=function(){var t=prompt("Tipo do recebimento");if(!t)return;var v=+prompt("Valor");if(!(v>0))return;md(document.getElementById("rMonth").value||month()).extraReceipts.push({type:t,value:v});save();receiptRender();summaryRender()};
+document.getElementById("addExtraReceipt").onclick=function(){
+ var t=prompt("Tipo do recebimento");if(!t)return;
+ var v=+prompt("Valor");if(!(v>0))return;
+ var due=prompt("Vencimento (AAAA-MM-DD):");if(due===null)return;
+ md(document.getElementById("rMonth").value||month()).extraReceipts.push({type:t.trim(),value:v,due:due.trim()});
+ save();receiptRender();summaryRender();
+};
 
 function managementSummaryProjection(m){
   var d=md(m),out=[];
@@ -3658,7 +3691,32 @@ document.getElementById("saveCard").onclick=function(){
   alert("Cartão cadastrado com sucesso.");
 };
 function settingsRender(){var _be=document.getElementById("biometricEnabled");
-  if(!admin())return;var h="<h3>Famílias</h3>";data.families.forEach(function(f,i){h+='<div class="row"><input id="cf'+i+'" value="'+esc(f.name)+'"><input id="cp'+i+'" type="number" value="'+f.pct+'"><button class="danger" data-df="'+i+'">×</button></div><input id="cw'+i+'" value="'+esc(f.wa||"")+'" placeholder="WhatsApp (opcional)">'});h+='<button id="newFamily" class="secondary">➕ Família</button><h3>Contas</h3>';data.accounts.forEach(function(a,i){h+='<div class="tworow"><input id="ca'+i+'" value="'+esc(a)+'"><button class="danger" data-da="'+i+'">×</button></div>'});h+='<div class="note">Gerenciar contas</div><button id="newAccount" class="secondary">➕ Acrescentar conta</button><button id="editAccount" class="secondary">✏️ Corrigir conta</button><button id="deleteAccount" class="danger">🗑️ Excluir conta</button><h3>Pessoas</h3>';data.people.forEach(function(x,i){h+='<div class="tworow"><input id="ce'+i+'" value="'+esc(x)+'"><button class="danger" data-de="'+i+'">×</button></div>'});h+='<button id="newPerson" class="secondary">➕ Pessoa</button><h3>📅 Período financeiro</h3><label>Como começa o próximo período?<select id="financialStartMode"><option value="day" '+(((data.financialStartMode||"day")==="day")?"selected":"")+'>Dia do mês</option><option value="business" '+((data.financialStartMode==="business")?"selected":"")+'>5º dia útil</option></select></label><label id="financialStartDayWrap">Dia de início <input id="financialStartDay" type="number" min="1" max="28" value="'+((+data.financialStartDay)||27)+'"><small>Você pode alterar o dia. Ex.: 27 significa que o dia 27 inicia o próximo período financeiro.</small></label><div id="financialBusinessInfo" class="note hidden">O próximo período começa no 5º dia útil. Sábados e domingos não são considerados dias úteis.</div><h3>🔒 Trava de segurança das Contas</h3><label><input id="fixedLockEnabled" type="checkbox" style="width:auto" '+(data.fixedSecurityLock!==false?"checked":"")+'> Bloquear meses encerrados e limitar preparação do próximo mês aos últimos 10 dias</label><div class="note">Meses anteriores ficam somente para consulta. Contas parceladas continuam podendo ser geradas para meses futuros. Alterar esta trava exige a senha do administrador.</div><h3>📱 Acesso por biometria</h3><label><input id="biometricEnabled" type="checkbox" style="width:auto" " + (data.biometricEnabled?"checked":"") + ""> Usar digital/biometria para entrar</label><div class="note">No APK Android, a confirmação será feita pela biometria do próprio aparelho. A senha continua disponível.</div><h3>🔐 Segurança da senha</h3><label>E-mail de recuperação</label><div class="recovery-email-row"><input id="recoveryEmail" type="email" readonly><button id="changeRecoveryEmail" class="secondary" type="button">✏️ Alterar e-mail</button></div><div class="password-actions"><button id="changePassword" class="secondary">🔑 Alterar senha</button><button id="resetPassword" class="secondary">♻️ Restaurar senha padrão (0000)</button><button id="resetApp" class="secondary">⚠️ Restaurar aplicativo</button></div><div class="note">A senha padrão é 0000. Restaurá-la fará com que a próxima entrada exija 0000.</div><h3>Segurança</h3><label><input id="deleteEnabled" type="checkbox" style="width:auto" '+(data.deletePurchases?"checked":"")+'> Habilitar exclusão de compras na aba Compras</label><h3>Recebimentos</h3><label><input id="receiptsEnabled" type="checkbox" style="width:auto" '+(data.receiptsEnabled?"checked":"")+'> Habilitar aba Recebimentos</label><div class="actions"><button id="saveSettings">💾 Salvar alterações</button><button id="backup" class="secondary">💾 Exportar backup</button><button id="importBackup" class="secondary">📥 Importar backup</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none"><button id="reset" class="danger">🗑️ Restaurar configurações iniciais</button></div>';document.getElementById("settingsBox").innerHTML=h;var periodModeField=document.getElementById("financialStartMode"),dayWrap=document.getElementById("financialStartDayWrap"),businessInfo=document.getElementById("financialBusinessInfo");function refreshPeriodUI(){var business=periodModeField&&periodModeField.value==="business";if(dayWrap)dayWrap.classList.toggle("hidden",business);if(businessInfo)businessInfo.classList.toggle("hidden",!business)}if(periodModeField){periodModeField.onchange=refreshPeriodUI;refreshPeriodUI()}var recoveryField=document.getElementById("recoveryEmail");if(recoveryField)recoveryField.value=recoveryEmail();document.querySelectorAll("[data-df]").forEach(function(b){b.onclick=function(){if(data.families.length===1)return alert("Mantenha uma família.");data.families.splice(+b.dataset.df,1);var v=100/data.families.length;data.families.forEach(function(f){f.pct=v});save();settingsRender()}});document.querySelectorAll("[data-da]").forEach(function(b){b.onclick=function(){data.accounts.splice(+b.dataset.da,1);save();settingsRender()}});document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){data.people.splice(+b.dataset.de,1);save();settingsRender()}});document.getElementById("newFamily").onclick=function(){if(data.families.length>=6)return alert("Máximo de 6.");data.families.push({name:"Família "+(data.families.length+1),pct:0,wa:""});var v=100/data.families.length;data.families.forEach(function(f){f.pct=v});save();settingsRender();fixedRender();};document.getElementById("newAccount").onclick=function(){
+  if(!admin())return;var h="<h3>Famílias</h3>";data.families.forEach(function(f,i){h+='<div class="row"><input id="cf'+i+'" value="'+esc(f.name)+'"><input id="cp'+i+'" type="number" value="'+f.pct+'"><button class="danger" data-df="'+i+'">×</button></div><input id="cw'+i+'" value="'+esc(f.wa||"")+'" placeholder="WhatsApp (opcional)">'});h+='<button id="newFamily" class="secondary">➕ Família</button><h3>Contas</h3>';data.accounts.forEach(function(a,i){h+='<div class="tworow"><input id="ca'+i+'" value="'+esc(a)+'"><button class="danger" data-da="'+i+'">×</button></div>'});h+='<div class="note">Gerenciar contas</div><button id="newAccount" class="secondary">➕ Acrescentar conta</button><button id="editAccount" class="secondary">✏️ Corrigir conta</button><button id="deleteAccount" class="danger">🗑️ Excluir conta</button><h3>Pessoas</h3>';data.people.forEach(function(x,i){h+='<div class="tworow"><input id="ce'+i+'" value="'+esc(x)+'"><button class="danger" data-de="'+i+'">×</button></div>'});h+='<button id="newPerson" class="secondary">➕ Pessoa</button><h3>📅 Período financeiro</h3><label>Como começa o próximo período?<select id="financialStartMode"><option value="day" '+(((data.financialStartMode||"day")==="day")?"selected":"")+'>Dia do mês</option><option value="business" '+((data.financialStartMode==="business")?"selected":"")+'>5º dia útil</option></select></label><label id="financialStartDayWrap">Dia de início <input id="financialStartDay" type="number" min="1" max="28" value="'+((+data.financialStartDay)||27)+'"><small>Você pode alterar o dia. Ex.: 27 significa que o dia 27 inicia o próximo período financeiro.</small></label><div id="financialBusinessInfo" class="note hidden">O próximo período começa no 5º dia útil. Sábados e domingos não são considerados dias úteis.</div><h3>🔒 Trava de segurança das Contas</h3><label><input id="fixedLockEnabled" type="checkbox" style="width:auto" '+(data.fixedSecurityLock!==false?"checked":"")+'> Bloquear meses encerrados e limitar preparação do próximo mês aos últimos 10 dias</label><div class="note">Meses anteriores ficam somente para consulta. Contas parceladas continuam podendo ser geradas para meses futuros. Alterar esta trava exige a senha do administrador.</div><h3>📱 Acesso por biometria</h3><label><input id="biometricEnabled" type="checkbox" style="width:auto" " + (data.biometricEnabled?"checked":"") + ""> Usar digital/biometria para entrar</label><div class="note">No APK Android, a confirmação será feita pela biometria do próprio aparelho. A senha continua disponível.</div><h3>🔐 Segurança da senha</h3><label>E-mail de recuperação</label><div class="recovery-email-row"><input id="recoveryEmail" type="email" readonly><button id="changeRecoveryEmail" class="secondary" type="button">✏️ Alterar e-mail</button></div><div class="password-actions"><button id="changePassword" class="secondary">🔑 Alterar senha</button><button id="resetPassword" class="secondary">♻️ Restaurar senha padrão (0000)</button><button id="resetApp" class="secondary">⚠️ Restaurar aplicativo</button></div><div class="note">A senha padrão é 0000. Restaurá-la fará com que a próxima entrada exija 0000.</div><h3>Segurança</h3><label><input id="deleteEnabled" type="checkbox" style="width:auto" '+(data.deletePurchases?"checked":"")+'> Habilitar exclusão de compras na aba Compras</label><h3>Recebimentos</h3><label><input id="receiptsEnabled" type="checkbox" style="width:auto" '+(data.receiptsEnabled?"checked":"")+'> Habilitar aba Recebimentos</label><h3>📅 Vencimentos dos recebimentos</h3><div class="note">Altere aqui o vencimento dos recebimentos já cadastrados.</div><div id="receiptDueSettings"></div><div class="actions"><button id="saveSettings">💾 Salvar alterações</button><button id="backup" class="secondary">💾 Exportar backup</button><button id="importBackup" class="secondary">📥 Importar backup</button><input id="backupFile" type="file" accept=".json,application/json" style="display:none"><button id="reset" class="danger">🗑️ Restaurar configurações iniciais</button></div>';document.getElementById("settingsBox").innerHTML=h;
+  var dueBox=document.getElementById("receiptDueSettings");
+  if(dueBox){
+    var dh="";
+    Object.keys(data.months||{}).sort().forEach(function(mm){
+      var dd=data.months[mm]||{};
+      (dd.extraReceipts||[]).forEach(function(x,i){
+        dh+='<div class="fixed-card" style="margin:6px 0"><strong>'+esc(x.type||"Recebimento")+'</strong><div style="font-size:.78rem;opacity:.7">Mês: '+esc(mm)+' · Valor: '+money(x.value)+'</div><label>Vencimento <input type="date" data-setting-extra-due="'+esc(mm)+'" data-setting-extra-index="'+i+'" value="'+esc(x.due||"")+'"></label></div>';
+      });
+      var sr=dd.seasonalReceipts||{};
+      ["férias","pis","restituição","13","outros"].forEach(function(k){
+        var x=sr[k];if(x&&(+x.value||0)>0){
+          var labels={"férias":"Férias","pis":"PIS","restituição":"Restituição","13":"13º","outros":"Outros"};
+          dh+='<div class="fixed-card" style="margin:6px 0"><strong>🌿 '+labels[k]+'</strong><div style="font-size:.78rem;opacity:.7">Mês: '+esc(mm)+' · Valor: '+money(x.value)+'</div><label>Vencimento <input type="date" data-setting-seasonal-due="'+esc(mm)+'" data-setting-seasonal-key="'+k+'" value="'+esc(x.due||"")+'"></label></div>';
+        }
+      });
+      (sr.custom||[]).forEach(function(x,i){
+        dh+='<div class="fixed-card" style="margin:6px 0"><strong>🌿 '+esc(x.type||"Sazonal")+'</strong><div style="font-size:.78rem;opacity:.7">Mês: '+esc(mm)+' · Valor: '+money(x.value)+'</div><label>Vencimento <input type="date" data-setting-custom-seasonal-due="'+esc(mm)+'" data-setting-custom-seasonal-index="'+i+'" value="'+esc(x.due||"")+'"></label></div>';
+      });
+    });
+    dueBox.innerHTML=dh||'<div class="note">Nenhum recebimento extra ou sazonal com valor cadastrado.</div>';
+    dueBox.querySelectorAll("[data-setting-extra-due]").forEach(function(el){el.onchange=function(){var d=md(el.dataset.settingExtraDue),x=d.extraReceipts[+el.dataset.settingExtraIndex];if(x){x.due=el.value;save();receiptRender();}}});
+    dueBox.querySelectorAll("[data-setting-seasonal-due]").forEach(function(el){el.onchange=function(){var d=md(el.dataset.settingSeasonalDue),x=d.seasonalReceipts[el.dataset.settingSeasonalKey];if(x){x.due=el.value;save();receiptRender();}}});
+    dueBox.querySelectorAll("[data-setting-custom-seasonal-due]").forEach(function(el){el.onchange=function(){var d=md(el.dataset.settingCustomSeasonalDue),x=(d.seasonalReceipts.custom||[])[+el.dataset.settingCustomSeasonalIndex];if(x){x.due=el.value;save();receiptRender();}}});
+  }
+  var periodModeField=document.getElementById("financialStartMode"),dayWrap=document.getElementById("financialStartDayWrap"),businessInfo=document.getElementById("financialBusinessInfo");function refreshPeriodUI(){var business=periodModeField&&periodModeField.value==="business";if(dayWrap)dayWrap.classList.toggle("hidden",business);if(businessInfo)businessInfo.classList.toggle("hidden",!business)}if(periodModeField){periodModeField.onchange=refreshPeriodUI;refreshPeriodUI()}var recoveryField=document.getElementById("recoveryEmail");if(recoveryField)recoveryField.value=recoveryEmail();document.querySelectorAll("[data-df]").forEach(function(b){b.onclick=function(){if(data.families.length===1)return alert("Mantenha uma família.");data.families.splice(+b.dataset.df,1);var v=100/data.families.length;data.families.forEach(function(f){f.pct=v});save();settingsRender()}});document.querySelectorAll("[data-da]").forEach(function(b){b.onclick=function(){data.accounts.splice(+b.dataset.da,1);save();settingsRender()}});document.querySelectorAll("[data-de]").forEach(function(b){b.onclick=function(){data.people.splice(+b.dataset.de,1);save();settingsRender()}});document.getElementById("newFamily").onclick=function(){if(data.families.length>=6)return alert("Máximo de 6.");data.families.push({name:"Família "+(data.families.length+1),pct:0,wa:""});var v=100/data.families.length;data.families.forEach(function(f){f.pct=v});save();settingsRender();fixedRender();};document.getElementById("newAccount").onclick=function(){
   var n=prompt("Nome da nova conta:");
   if(n===null)return;
   n=n.trim();
