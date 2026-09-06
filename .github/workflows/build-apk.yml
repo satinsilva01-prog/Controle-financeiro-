@@ -1,0 +1,43 @@
+name: Gerar APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.zip"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Preparar projeto Android
+        run: |
+          rm -rf .build
+          mkdir .build
+          unzip -q MINHAS_FINANCAS_APK_GITHUB_PRONTO.zip -d .build
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Gerar APK
+        working-directory: .build/minhas_apk_project
+        run: gradle assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MINHAS-FINANCAS-APK
+          path: .build/minhas_apk_project/app/build/outputs/apk/debug/app-debug.apk
