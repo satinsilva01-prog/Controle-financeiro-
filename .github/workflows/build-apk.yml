@@ -1,4 +1,4 @@
-name: Build MINHAS FINANÇAS APK V9 - BIOMETRIA
+name:  Build MINHAS FINANÇAS APK V9 - BIOMETRIA
 on:
   workflow_dispatch:
   push:
