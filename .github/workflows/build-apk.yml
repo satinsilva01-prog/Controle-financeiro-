@@ -1,43 +1,53 @@
-name: Gerar APK
-
+name: Build MINHAS FINANÇAS APK
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "*.zip"
-      - ".github/workflows/build-apk.yml"
+    branches: [ main, master ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Baixar projeto
+      - name: Baixar código
         uses: actions/checkout@v4
 
-      - name: Preparar projeto Android
+      - name: Extrair projeto APK enviado em ZIP
+        shell: bash
         run: |
-          rm -rf .build
-          mkdir .build
-          unzip -q MINHAS_FINANCAS_APK_GITHUB_PRONTO.zip -d .build
+          ZIP=$(find . -maxdepth 1 -type f -name 'MINHAS_FINANCAS_APK*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)
+          if [ -z "$ZIP" ]; then
+            echo "Nenhum ZIP MINHAS_FINANCAS_APK encontrado na raiz."
+            exit 1
+          fi
+          echo "Usando: $ZIP"
+          rm -rf /tmp/mf_apk
+          mkdir -p /tmp/mf_apk
+          unzip -q "$ZIP" -d /tmp/mf_apk
+          if [ -d /tmp/mf_apk/minhas_apk_project ]; then
+            cp -R /tmp/mf_apk/minhas_apk_project/. .
+          else
+            echo "Pasta minhas_apk_project não encontrada dentro do ZIP."
+            find /tmp/mf_apk -maxdepth 2 -type f | head -50
+            exit 1
+          fi
+          test -f app/src/main/assets/index.html
+          grep -q 'Sincronização entre dispositivos' app/src/main/assets/index.html
+          echo "Projeto APK Firebase confirmado."
 
-      - name: Configurar Java
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.7"
 
       - name: Gerar APK
-        working-directory: .build/minhas_apk_project
-        run: gradle assembleDebug
+        run: gradle :app:assembleDebug --no-daemon
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: MINHAS-FINANCAS-APK
-          path: .build/minhas_apk_project/app/build/outputs/apk/debug/app-debug.apk
+          name: MINHAS-FINANCAS-APK-FIREBASE
+          path: app/build/outputs/apk/debug/app-debug.apk
