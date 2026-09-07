@@ -1,4 +1,4 @@
-name:  Build MINHAS FINANÇAS APK V9 - BIOMETRIA
+name: Build MINHAS FINANÇAS APK V9 - BIOMETRIA
 on:
   workflow_dispatch:
   push:
@@ -32,7 +32,7 @@ jobs:
           fi
           test -f app/src/main/assets/index.html
           grep -q 'Sincronização entre dispositivos' app/src/main/assets/index.html
-          echo "Projeto APK Firebase confirmado."
+          echo "Projeto APK V9 com biometria configurável confirmada."
 
       - name: Configurar Java 17
         uses: actions/setup-java@v4
