@@ -1,4 +1,5 @@
-name:  Build MINHAS FINANÇAS APK V9 - BIOMETRIA
+name: Build MINHAS FINANÇAS APK V10 - VOZ
+
 on:
   workflow_dispatch:
   push:
@@ -23,6 +24,7 @@ jobs:
           rm -rf /tmp/mf_apk
           mkdir -p /tmp/mf_apk
           unzip -q "$ZIP" -d /tmp/mf_apk
+
           if [ -d /tmp/mf_apk/minhas_apk_project ]; then
             cp -R /tmp/mf_apk/minhas_apk_project/. .
           else
@@ -30,9 +32,10 @@ jobs:
             find /tmp/mf_apk -maxdepth 2 -type f | head -50
             exit 1
           fi
+
           test -f app/src/main/assets/index.html
-          grep -q 'Sincronização entre dispositivos' app/src/main/assets/index.html
-          echo "Projeto APK V9 com biometria configurável confirmada."
+          grep -q 'Preencher por voz' app/src/main/assets/index.html
+          echo "Projeto APK V10 com comando de voz confirmado."
 
       - name: Configurar Java 17
         uses: actions/setup-java@v4
@@ -49,5 +52,5 @@ jobs:
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: MINHAS-FINANCAS-APK-V9-BIOMETRIA
+          name: MINHAS-FINANCAS-APK-V10-VOZ
           path: app/build/outputs/apk/debug/app-debug.apk
