@@ -39,11 +39,11 @@ jobs:
           cp -R /tmp/mf_apk/minhas_apk_project/. .
 
           if [ ! -f app/src/main/assets/index.html ]; then
-            echo "ERRO: index.html não encontrado no projeto APK."
+            echo "ERRO: index.html não encontrado."
             exit 1
           fi
 
-          echo "Verificando a V10 atualizada..."
+          echo "Verificando V10 atualizada..."
 
           python3 - <<'PY'
           from pathlib import Path
@@ -100,7 +100,7 @@ jobs:
 
           if "pendingManagement" in js:
               raise SystemExit(
-                  "ERRO: versão antiga do bloco Programado detectada."
+                  "ERRO: bloco Programado antigo detectado."
               )
 
           print("OK: V10 atualizada confirmada.")
@@ -116,10 +116,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Configurar Gradle
+      - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-      - name: Gerar APK
+      - name: Construir APK
         run: gradle :app:assembleDebug --no-daemon
 
       - name: Disponibilizar APK
