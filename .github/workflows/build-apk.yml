@@ -1,4 +1,4 @@
-name: Build MINHAS FINANÇAS APK V10 - VOZ
+name: Build MINHAS FINANÇAS APK V10 - VOZ ATUALIZADO
 
 on:
   workflow_dispatch:
@@ -8,34 +8,107 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
 
-      - name: Extrair projeto APK enviado em ZIP
+      - name: Extrair projeto APK V10 atualizado
         shell: bash
         run: |
-          ZIP=$(find . -maxdepth 1 -type f -name 'MINHAS_FINANCAS_APK*.zip' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)
-          if [ -z "$ZIP" ]; then
-            echo "Nenhum ZIP MINHAS_FINANCAS_APK encontrado na raiz."
+          ZIP="./MINHAS_FINANCAS_APK_V10_VOZ.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ERRO: $ZIP não encontrado na raiz."
             exit 1
           fi
-          echo "Usando: $ZIP"
+
+          echo "Usando EXATAMENTE: $ZIP"
+
           rm -rf /tmp/mf_apk
           mkdir -p /tmp/mf_apk
+
           unzip -q "$ZIP" -d /tmp/mf_apk
 
-          if [ -d /tmp/mf_apk/minhas_apk_project ]; then
-            cp -R /tmp/mf_apk/minhas_apk_project/. .
-          else
-            echo "Pasta minhas_apk_project não encontrada dentro do ZIP."
-            find /tmp/mf_apk -maxdepth 2 -type f | head -50
+          if [ ! -d /tmp/mf_apk/minhas_apk_project ]; then
+            echo "ERRO: Pasta minhas_apk_project não encontrada dentro do ZIP."
+            find /tmp/mf_apk -maxdepth 3 -type f | head -50
             exit 1
           fi
 
-          test -f app/src/main/assets/index.html
-          grep -q 'Preencher por voz' app/src/main/assets/index.html
-          echo "Projeto APK V10 com comando de voz confirmado."
+          cp -R /tmp/mf_apk/minhas_apk_project/. .
+
+          if [ ! -f app/src/main/assets/index.html ]; then
+            echo "ERRO: index.html não encontrado no projeto APK."
+            exit 1
+          fi
+
+          echo "Verificando a V10 atualizada..."
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import base64
+          import gzip
+          import hashlib
+
+          p = Path("app/src/main/assets/index.html")
+          html = p.read_text(encoding="utf-8")
+
+          m = re.search(
+              r'<script id="mfApkLoader">(.*?)</script>',
+              html,
+              re.S
+          )
+
+          if not m:
+              raise SystemExit(
+                  "ERRO: loader mfApkLoader não encontrado."
+              )
+
+          b = re.search(
+              r'atob\("([^"]+)"\)',
+              m.group(1)
+          )
+
+          if not b:
+              raise SystemExit(
+                  "ERRO: payload da V10 não encontrado."
+              )
+
+          js = gzip.decompress(
+              base64.b64decode(b.group(1))
+          ).decode("utf-8")
+
+          required = [
+              "MF_updateSummaryProgrammed",
+              "voiceStatus",
+              "MF_sensitiveConfirm",
+              "fillPurchase"
+          ]
+
+          missing = [
+              x for x in required
+              if x not in js
+          ]
+
+          if missing:
+              raise SystemExit(
+                  "ERRO: V10 incompleta. Faltando: "
+                  + ", ".join(missing)
+              )
+
+          if "pendingManagement" in js:
+              raise SystemExit(
+                  "ERRO: versão antiga do bloco Programado detectada."
+              )
+
+          print("OK: V10 atualizada confirmada.")
+          print(
+              "SHA256:",
+              hashlib.sha256(p.read_bytes()).hexdigest()
+          )
+          PY
 
       - name: Configurar Java 17
         uses: actions/setup-java@v4
@@ -52,5 +125,5 @@ jobs:
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: MINHAS-FINANCAS-APK-V10-VOZ
+          name: MINHAS-FINANCAS-APK-V10-VOZ-ATUALIZADO
           path: app/build/outputs/apk/debug/app-debug.apk
