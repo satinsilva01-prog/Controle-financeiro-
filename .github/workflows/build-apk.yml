@@ -1,5 +1,4 @@
-name: Build MINHAS FINANÇAS APK V10 - VOZ ATUALIZADO
-
+name: ZIP="./MINHAS_FINANCAS_APK_V10_VOZ_ATUALIZADO.zip"
 on:
   workflow_dispatch:
   push:
