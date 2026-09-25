@@ -1,0 +1,90 @@
+name: Corrigir backup manual
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-backup-once.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Corrigir função de backup
+        run: |
+          python3 <<'PY'
+          import base64, gzip, re
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          m=re.search(r'(<script id="mfApkLoader">\(async\(\)=>\{try\{const b=atob\(")([^"]+)("\),u=new Uint8Array)',s,re.S)
+          if not m:
+              raise SystemExit('Loader APK não encontrado')
+          js=gzip.decompress(base64.b64decode(m.group(2))).decode('utf-8')
+          start=js.index('  window.MF_exportBackup=async function(){')
+          end=js.index('\n  function importFile(file){',start)
+          new=r'''  window.MF_exportBackup=async function(){
+            const def='backup_minhas_financas_'+new Date().toISOString().slice(0,10);
+            const input=document.getElementById('mfBackupName');
+            let name=input ? input.value.trim() : '';
+            if(!name){
+              name=prompt('Digite o nome que deseja dar ao arquivo do backup:',def);
+              if(name===null)return;
+              name=String(name).trim()||def;
+            }
+            const filename=safeName(name).replace(/\.json$/i,'')+'.json';
+            const json=JSON.stringify(collect(),null,2);
+            const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+            const st=document.getElementById('mfBackupStatus');
+            try{
+              if(navigator.share && typeof File!=='undefined'){
+                const file=new File([blob],filename,{type:'application/json'});
+                const canShare=!navigator.canShare || navigator.canShare({files:[file]});
+                if(canShare){
+                  await navigator.share({title:'Backup MINHAS FINANÇAS',text:'Backup do aplicativo MINHAS FINANÇAS',files:[file]});
+                  if(st)st.textContent='✓ Backup exportado: '+filename;
+                  return;
+                }
+              }
+            }catch(e){ if(e && e.name==='AbortError')return; }
+            try{
+              if(window.showSaveFilePicker){
+                const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'Backup MINHAS FINANÇAS',accept:{'application/json':['.json']}}]});
+                const writable=await handle.createWritable();
+                await writable.write(blob); await writable.close();
+                if(st)st.textContent='✓ Backup salvo: '+filename;
+                return;
+              }
+            }catch(e){ if(e && e.name==='AbortError')return; }
+            try{
+              const url=URL.createObjectURL(blob),a=document.createElement('a');
+              a.href=url;a.download=filename;a.rel='noopener';a.style.display='none';
+              document.body.appendChild(a);a.click();
+              setTimeout(()=>{a.remove();try{URL.revokeObjectURL(url)}catch(_){}},1500);
+              if(st)st.textContent='✓ Backup exportado: '+filename;
+              return;
+            }catch(e){}
+            try{
+              const a=document.createElement('a');
+              a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json);
+              a.download=filename;a.rel='noopener';a.style.display='none';
+              document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1500);
+              if(st)st.textContent='✓ Backup exportado: '+filename;
+              return;
+            }catch(e){ if(st)st.textContent='✕ Não foi possível exportar o backup neste dispositivo.'; }
+          };'''
+          js=js[:start]+new+js[end:]
+          b64=base64.b64encode(gzip.compress(js.encode('utf-8'),mtime=0)).decode('ascii')
+          s=s[:m.start(2)]+b64+s[m.end(2):]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Gravar correção e remover workflow temporário
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: backup manual compatível com APK' || true
+          git rm .github/workflows/fix-backup-once.yml
+          git commit -m 'chore: remover workflow temporário de correção' || true
+          git push
